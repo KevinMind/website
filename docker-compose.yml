@@ -1,8 +1,9 @@
 services:
   web:
-    image: "${WEB_DOCKER_TAG}"
-    env_file:
-      - .env
+    image: "${WEB_DOCKER_TAG:?}"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - WEB_DOCKER_TARGET
     build:
       context: .
       dockerfile: Dockerfile.web
@@ -19,8 +20,6 @@ services:
       - .:/app
       - /app/node_modules
       - /app/web/build
-    environment:
-      - CHOKIDAR_USEPOLLING=true
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5173"]
       interval: 1m30s
