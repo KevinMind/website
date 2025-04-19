@@ -1,5 +1,5 @@
 {
-  "extends": "configs/tsconfig.dom.json",
+  "extends": "@more/configs/tsconfig.dom.json",
   "include": [
     "**/*",
     "**/.server/**/*",

@@ -9,6 +9,7 @@ SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 ARG NODE_ENV
 
 ENV HOME=/app
+ENV BUILD_PATH=/app/build
 ENV NODE_ENV=$NODE_ENV
 ENV PATH=$HOME/node_modules/.bin:$PATH
 
@@ -44,6 +45,7 @@ COPY --from=source $HOME/out/json $HOME
 
 RUN npm ci --no-fund
 
+# TODO: don't depend on dependencies in the build stage
 ################################################################################################
 FROM dependencies AS build
 ################################################################################################
@@ -52,9 +54,18 @@ ARG APP_NAME
 
 COPY --from=source $HOME/out/full $HOME
 
+RUN <<EOF
 # Install full dependencies so we can build the application
-RUN npm ci --include=dev --no-fund
-RUN npm run build --filter=$APP_NAME
+npm ci --include=dev --no-fund
+
+# First run the build filtering for the app
+npm run build --filter=$APP_NAME
+APP_PATH=$(npm exec -c 'pwd' -w $APP_NAME)
+
+# The copy the build to a known location so we can copy it in the production image
+mkdir -p $BUILD_PATH
+mv $APP_PATH/build $APP_PATH/package.json $BUILD_PATH
+EOF
 
 ################################################################################################
 FROM base AS development
@@ -66,11 +77,13 @@ COPY --from=source $HOME $HOME
 CMD ["npm", "run", "dev"]
 
 ################################################################################################
-FROM dependencies AS production
+FROM base AS production
 ################################################################################################
 
-ARG APP_NAME
+WORKDIR $BUILD_PATH
 
-COPY --from=build $HOME/apps/$APP_NAME/build $HOME/apps/$APP_NAME/build
+# TODO: don't depend on dependencies in the production stage
+COPY --from=dependencies $HOME $BUILD_PATH
+COPY --from=build $BUILD_PATH $BUILD_PATH
 
 CMD ["npm", "run", "start"]
